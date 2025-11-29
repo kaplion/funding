@@ -444,3 +444,35 @@ def create_dashboard(
         risk_manager=risk_manager,
         accounting=accounting,
     )
+
+
+def get_app():
+    """Get or create FastAPI app instance for uvicorn."""
+    from config.config import load_config
+
+    config = load_config()
+    dashboard = create_dashboard(config)
+    return dashboard.app
+
+
+# Create app instance for uvicorn (used when running with uvicorn src.dashboard:app)
+app = get_app()
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    from config.config import load_config
+
+    config = load_config()
+    dashboard = create_dashboard(config)
+
+    print("Starting Funding Bot Dashboard...")
+    print("Access at: http://localhost:8000")
+
+    uvicorn.run(
+        dashboard.app,
+        host="0.0.0.0",
+        port=8000,
+        log_level="info",
+    )

@@ -100,10 +100,24 @@ class RiskManager:
         Returns:
             RiskMetrics with current values
         """
-        # Get account data
-        balance = await self.data_collector.get_account_balance()
-        margin_ratio = await self.data_collector.get_margin_ratio()
-        futures_positions = await self.data_collector.get_futures_positions()
+        # Get account data with exception handling
+        try:
+            balance = await self.data_collector.get_account_balance()
+        except Exception as e:
+            logger.warning(f"Could not fetch balance: {e}")
+            balance = {"total_equity": 0, "spot_total": 0, "futures_total": 0}
+
+        try:
+            margin_ratio = await self.data_collector.get_margin_ratio()
+        except Exception as e:
+            logger.warning(f"Could not fetch margin ratio: {e}")
+            margin_ratio = None
+
+        try:
+            futures_positions = await self.data_collector.get_futures_positions()
+        except Exception as e:
+            logger.warning(f"Could not fetch futures positions: {e}")
+            futures_positions = []
 
         total_equity = balance.get("total_equity", 0)
 

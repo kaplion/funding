@@ -410,18 +410,22 @@ class DataCollector:
     async def get_margin_ratio(self) -> float | None:
         """Get current margin ratio for futures account."""
         try:
-            account = await self.futures_exchange.fapiPrivateGetAccount()
-            total_margin = float(account.get("totalMarginBalance", 0) or 0)
-            maintenance_margin = float(
-                account.get("totalMaintMargin", 0) or 0
-            )
+            # Use CCXT's standard method instead of direct API call
+            balance = await self.futures_exchange.fetch_balance()
+
+            # Get margin info from balance
+            info = balance.get("info", {})
+            total_margin = float(info.get("totalMarginBalance", 0) or 0)
+            maintenance_margin = float(info.get("totalMaintMargin", 0) or 0)
 
             if total_margin == 0:
                 return None
 
             return maintenance_margin / total_margin
-
         except ccxt.ExchangeError as e:
+            logger.error(f"Exchange error fetching margin ratio: {e}")
+            return None
+        except Exception as e:
             logger.error(f"Error fetching margin ratio: {e}")
             return None
 

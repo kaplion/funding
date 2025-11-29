@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import signal as signal_module
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -480,15 +481,16 @@ async def main(config_path: str | None = None) -> None:
     # Create bot instance
     bot = FundingBot(config)
 
-    # Setup signal handlers
-    loop = asyncio.get_event_loop()
+    # Setup signal handlers (Unix only - Windows doesn't support add_signal_handler)
+    if sys.platform != "win32":
+        loop = asyncio.get_event_loop()
 
-    def signal_handler():
-        logger.info("Received shutdown signal")
-        asyncio.create_task(bot.stop())
+        def signal_handler():
+            logger.info("Received shutdown signal")
+            asyncio.create_task(bot.stop())
 
-    for sig in (signal_module.SIGINT, signal_module.SIGTERM):
-        loop.add_signal_handler(sig, signal_handler)
+        for sig in (signal_module.SIGINT, signal_module.SIGTERM):
+            loop.add_signal_handler(sig, signal_handler)
 
     try:
         # Initialize bot
@@ -496,6 +498,10 @@ async def main(config_path: str | None = None) -> None:
 
         # Run bot
         await bot.run()
+
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt")
+        await bot.stop()
 
     finally:
         # Shutdown

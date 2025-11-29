@@ -10,11 +10,9 @@
 <body>
     <div class="container">
         <header>
-            <h1>🤖 Funding Rate Arbitrage Bot <span id="paper-mode-badge" class="paper-badge" style="display: none;">PAPER MODE</span></h1>
-            <div class="bot-controls">
-                <span id="bot-status" class="status-badge status-stopped">Stopped</span>
-                <button id="btn-start" class="btn btn-success" onclick="startBot()">Start Bot</button>
-                <button id="btn-stop" class="btn btn-danger" onclick="stopBot()" disabled>Stop Bot</button>
+            <h1>🤖 Funding Rate Arbitrage Bot</h1>
+            <div class="header-controls">
+                <span class="badge paper-mode" id="paper-badge" style="display: none;">PAPER MODE</span>
                 <button class="btn btn-secondary" onclick="refreshData()">🔄 Refresh</button>
             </div>
         </header>

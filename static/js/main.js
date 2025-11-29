@@ -34,7 +34,6 @@ async function refreshData() {
             fetchPerformance(),
             fetchEquityHistory(),
             fetchConfig(),
-            fetchStatus(),
             fetchPaperStatus()
         ]);
         updateLastUpdated();
@@ -55,7 +54,7 @@ async function fetchPaperStatus() {
         const response = await fetch('/api/paper-status');
         const data = await response.json();
         
-        const paperBadge = document.getElementById('paper-mode-badge');
+        const paperBadge = document.getElementById('paper-badge');
         if (paperBadge) {
             if (data.paper_trading) {
                 paperBadge.style.display = 'inline-block';
@@ -67,32 +66,6 @@ async function fetchPaperStatus() {
         }
     } catch (error) {
         console.error('Error fetching paper status:', error);
-    }
-}
-
-// Fetch bot status
-async function fetchStatus() {
-    try {
-        const response = await fetch('/api/status');
-        const data = await response.json();
-        
-        const statusBadge = document.getElementById('bot-status');
-        const btnStart = document.getElementById('btn-start');
-        const btnStop = document.getElementById('btn-stop');
-        
-        if (data.running) {
-            statusBadge.textContent = 'Running';
-            statusBadge.className = 'status-badge status-running';
-            btnStart.disabled = true;
-            btnStop.disabled = false;
-        } else {
-            statusBadge.textContent = 'Stopped';
-            statusBadge.className = 'status-badge status-stopped';
-            btnStart.disabled = false;
-            btnStop.disabled = true;
-        }
-    } catch (error) {
-        console.error('Error fetching status:', error);
     }
 }
 
@@ -419,31 +392,6 @@ function updateFundingChart(fundingRates) {
         f.apr >= 0 ? 'rgba(35, 134, 54, 0.8)' : 'rgba(218, 54, 51, 0.8)'
     );
     fundingChart.update();
-}
-
-// Bot controls
-async function startBot() {
-    try {
-        const response = await fetch('/api/bot/start', { method: 'POST' });
-        const data = await response.json();
-        console.log('Start bot response:', data);
-        await fetchStatus();
-    } catch (error) {
-        console.error('Error starting bot:', error);
-        alert('Failed to start bot: ' + error.message);
-    }
-}
-
-async function stopBot() {
-    try {
-        const response = await fetch('/api/bot/stop', { method: 'POST' });
-        const data = await response.json();
-        console.log('Stop bot response:', data);
-        await fetchStatus();
-    } catch (error) {
-        console.error('Error stopping bot:', error);
-        alert('Failed to stop bot: ' + error.message);
-    }
 }
 
 // Formatting helpers

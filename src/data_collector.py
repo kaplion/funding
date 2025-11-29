@@ -153,6 +153,15 @@ class DataCollector:
         self._paper_trader = paper_trader
 
     @property
+    def paper_trader(self) -> PaperTrader | None:
+        """Get the paper trader instance.
+
+        Returns:
+            PaperTrader instance or None if not set
+        """
+        return self._paper_trader
+
+    @property
     def exchange(self) -> ccxt.binance:
         """Get spot exchange instance."""
         if not self._exchange:

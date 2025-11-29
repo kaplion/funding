@@ -401,6 +401,12 @@ class Executor:
         """
         logger.info(f"Opening position: {symbol} {side.value} ${position_size_usdt}")
 
+        # Paper trading mode - use paper trader
+        if self.config.trading.paper_trading:
+            return await self._open_paper_position(
+                symbol, side, position_size_usdt, entry_funding_rate
+            )
+
         # Create position object
         position = Position(
             symbol=symbol,
@@ -564,6 +570,10 @@ class Executor:
         """
         logger.info(f"Closing position: {position.symbol}")
 
+        # Paper trading mode - use paper trader
+        if self.config.trading.paper_trading:
+            return await self._close_paper_position(position)
+
         position.status = PositionStatus.CLOSING
 
         # Determine order sides (opposite of opening)
@@ -643,3 +653,128 @@ class Executor:
             spot_order=spot_order,
             futures_order=futures_order,
         )
+
+    async def _open_paper_position(
+        self,
+        symbol: str,
+        side: PositionSide,
+        position_size_usdt: float,
+        entry_funding_rate: float,
+    ) -> PositionExecutionResult:
+        """Open a paper trading position.
+
+        Args:
+            symbol: Trading pair
+            side: Position side
+            position_size_usdt: Position size in USDT
+            entry_funding_rate: Current funding rate
+
+        Returns:
+            PositionExecutionResult with details
+        """
+        # Get current prices from real market data
+        spread = await self.data_collector.get_spot_futures_spread(symbol)
+        if not spread:
+            return PositionExecutionResult(
+                success=False,
+                error="Could not get current prices",
+            )
+
+        # Use paper trader to simulate
+        paper_trader = self.data_collector.paper_trader
+        if not paper_trader:
+            return PositionExecutionResult(
+                success=False,
+                error="Paper trader not initialized",
+            )
+
+        result = await paper_trader.open_position(
+            symbol=symbol,
+            side=side.value,
+            size_usdt=position_size_usdt,
+            funding_rate=entry_funding_rate,
+            spot_price=spread.spot_price,
+            futures_price=spread.futures_price,
+        )
+
+        if not result.get("success"):
+            return PositionExecutionResult(
+                success=False,
+                error=result.get("error", "Unknown error"),
+            )
+
+        # Create Position object for database
+        paper_position = result["position"]
+        position = Position(
+            symbol=symbol,
+            side=side,
+            status=PositionStatus.OPEN,
+            entry_funding_rate=entry_funding_rate,
+            spot_quantity=paper_position.spot_quantity,
+            spot_entry_price=spread.spot_price,
+            futures_quantity=paper_position.futures_quantity,
+            futures_entry_price=spread.futures_price,
+            futures_leverage=1,
+            opened_at=datetime.utcnow(),
+            total_fees=result.get("total_fee", 0),
+        )
+
+        logger.info(f"[PAPER] Position opened: {symbol} ${position_size_usdt}")
+
+        return PositionExecutionResult(success=True, position=position)
+
+    async def _close_paper_position(
+        self, position: Position
+    ) -> PositionExecutionResult:
+        """Close a paper trading position.
+
+        Args:
+            position: Position to close
+
+        Returns:
+            PositionExecutionResult with details
+        """
+        # Get current prices from real market data
+        spread = await self.data_collector.get_spot_futures_spread(position.symbol)
+        if not spread:
+            return PositionExecutionResult(
+                success=False,
+                error="Could not get current prices",
+            )
+
+        # Use paper trader to simulate
+        paper_trader = self.data_collector.paper_trader
+        if not paper_trader:
+            return PositionExecutionResult(
+                success=False,
+                error="Paper trader not initialized",
+            )
+
+        result = await paper_trader.close_position(
+            symbol=position.symbol,
+            spot_price=spread.spot_price,
+            futures_price=spread.futures_price,
+        )
+
+        if not result.get("success"):
+            return PositionExecutionResult(
+                success=False,
+                error=result.get("error", "Unknown error"),
+            )
+
+        # Update position with close details
+        position.spot_exit_price = spread.spot_price
+        position.futures_exit_price = spread.futures_price
+        position.spot_pnl = result.get("spot_pnl", 0)
+        position.futures_pnl = result.get("futures_pnl", 0)
+        position.total_fees += result.get("total_fees", 0)
+        position.realized_pnl = result.get("realized_pnl", 0)
+        position.status = PositionStatus.CLOSED
+        position.closed_at = datetime.utcnow()
+
+        logger.info(
+            f"[PAPER] Position closed: {position.symbol} "
+            f"Realized P&L: ${position.realized_pnl:.2f}"
+        )
+
+        return PositionExecutionResult(success=True, position=position)

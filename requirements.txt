@@ -1,0 +1,42 @@
+# Core dependencies
+python-binance>=1.0.19
+ccxt>=4.0.0
+asyncio>=3.4.3
+
+# Web framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+jinja2>=3.1.2
+
+# Database
+sqlalchemy>=2.0.0
+aiosqlite>=0.19.0
+
+# HTTP client
+aiohttp>=3.9.0
+httpx>=0.25.0
+
+# Utilities
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Notifications
+python-telegram-bot>=20.0
+
+# Data processing
+pandas>=2.1.0
+numpy>=1.26.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
+# Type checking
+mypy>=1.7.0
+
+# Code quality
+black>=23.11.0
+ruff>=0.1.6

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Funding Rate Arbitrage Bot</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 Funding Rate Arbitrage Bot</h1>
+            <div class="bot-controls">
+                <span id="bot-status" class="status-badge status-stopped">Stopped</span>
+                <button id="btn-start" class="btn btn-success" onclick="startBot()">Start Bot</button>
+                <button id="btn-stop" class="btn btn-danger" onclick="stopBot()" disabled>Stop Bot</button>
+                <button class="btn btn-secondary" onclick="refreshData()">🔄 Refresh</button>
+            </div>
+        </header>
+
+        <!-- Overview Panel -->
+        <section class="panel overview-panel">
+            <h2>📊 Overview</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Total Equity</span>
+                    <span id="total-equity" class="metric-value">$0.00</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Total P&L</span>
+                    <span id="total-pnl" class="metric-value">$0.00</span>
+                    <span id="total-pnl-pct" class="metric-subvalue">0.00%</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Daily APR</span>
+                    <span id="daily-apr" class="metric-value">0.00%</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Monthly APR</span>
+                    <span id="monthly-apr" class="metric-value">0.00%</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Annualized APR</span>
+                    <span id="annualized-apr" class="metric-value">0.00%</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Open Positions</span>
+                    <span id="open-positions" class="metric-value">0</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Total Funding</span>
+                    <span id="total-funding" class="metric-value">$0.00</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Total Fees</span>
+                    <span id="total-fees" class="metric-value">$0.00</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Risk Metrics Panel -->
+        <section class="panel risk-panel">
+            <h2>⚠️ Risk Metrics</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Risk Level</span>
+                    <span id="risk-level" class="metric-value risk-low">Low</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Margin Ratio</span>
+                    <span id="margin-ratio" class="metric-value">0.00%</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Min Liq. Distance</span>
+                    <span id="liq-distance" class="metric-value">N/A</span>
+                </div>
+                <div class="metric-card">
+                    <span class="metric-label">Current Drawdown</span>
+                    <span id="drawdown" class="metric-value">0.00%</span>
+                </div>
+            </div>
+            <div id="risk-alerts" class="alerts-container"></div>
+        </section>
+
+        <!-- Positions Table -->
+        <section class="panel positions-panel">
+            <h2>📈 Open Positions</h2>
+            <div class="table-container">
+                <table id="positions-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Side</th>
+                            <th>Size</th>
+                            <th>Entry Funding</th>
+                            <th>Current Funding</th>
+                            <th>Accumulated</th>
+                            <th>Net P&L</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="positions-body">
+                        <tr>
+                            <td colspan="8" class="no-data">No open positions</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Charts Section -->
+        <section class="panel charts-panel">
+            <h2>📉 Charts</h2>
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Equity Curve</h3>
+                    <canvas id="equity-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Funding Income by Coin</h3>
+                    <canvas id="funding-chart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Top Funding Rates -->
+        <section class="panel funding-rates-panel">
+            <h2>💰 Top Funding Rates</h2>
+            <div class="table-container">
+                <table id="funding-rates-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Funding Rate</th>
+                            <th>APR</th>
+                            <th>Mark Price</th>
+                            <th>Volume 24h</th>
+                            <th>Next Funding</th>
+                        </tr>
+                    </thead>
+                    <tbody id="funding-rates-body">
+                        <tr>
+                            <td colspan="6" class="no-data">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Performance by Symbol -->
+        <section class="panel performance-panel">
+            <h2>📊 Performance by Symbol</h2>
+            <div class="table-container">
+                <table id="performance-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Trades</th>
+                            <th>Win Rate</th>
+                            <th>Total P&L</th>
+                            <th>Funding</th>
+                            <th>Fees</th>
+                        </tr>
+                    </thead>
+                    <tbody id="performance-body">
+                        <tr>
+                            <td colspan="6" class="no-data">No performance data</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Settings Panel -->
+        <section class="panel settings-panel">
+            <h2>⚙️ Settings</h2>
+            <div class="settings-grid" id="settings-container">
+                <div class="setting-group">
+                    <h3>Strategy</h3>
+                    <div class="setting-item">
+                        <span>Min Funding Rate:</span>
+                        <span id="setting-min-funding">0.0003</span>
+                    </div>
+                    <div class="setting-item">
+                        <span>Max Spread:</span>
+                        <span id="setting-max-spread">0.001</span>
+                    </div>
+                    <div class="setting-item">
+                        <span>Position Size:</span>
+                        <span id="setting-position-size">10%</span>
+                    </div>
+                    <div class="setting-item">
+                        <span>Max Positions:</span>
+                        <span id="setting-max-positions">5</span>
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <h3>Risk</h3>
+                    <div class="setting-item">
+                        <span>Max Coin Allocation:</span>
+                        <span id="setting-max-allocation">20%</span>
+                    </div>
+                    <div class="setting-item">
+                        <span>Margin Warning:</span>
+                        <span id="setting-margin-warning">70%</span>
+                    </div>
+                    <div class="setting-item">
+                        <span>Margin Critical:</span>
+                        <span id="setting-margin-critical">85%</span>
+                    </div>
+                    <div class="setting-item">
+                        <span>Max Drawdown:</span>
+                        <span id="setting-max-drawdown">10%</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>Last updated: <span id="last-updated">Never</span></p>
+        </footer>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

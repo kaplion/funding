@@ -48,9 +48,7 @@ class Dashboard:
 
         # Create data collector with paper trader if not provided
         if data_collector is None:
-            self.data_collector = DataCollector(config)
-            if self._paper_trader:
-                self.data_collector._paper_trader = self._paper_trader
+            self.data_collector = DataCollector(config, paper_trader=self._paper_trader)
         else:
             self.data_collector = data_collector
 
@@ -137,9 +135,6 @@ class Dashboard:
                             margin_ratio = await self.data_collector.get_margin_ratio()
                         except Exception as e:
                             logger.warning(f"Could not get balance: {e}")
-                            # Fallback for paper trading
-                            if self.config.trading.paper_trading and self._paper_trader:
-                                balance = await self._paper_trader.get_balance()
 
                     # Calculate P&L
                     account_pnl = await self.accounting.calculate_account_pnl(

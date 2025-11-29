@@ -436,6 +436,8 @@ class FundingBot:
 
 def setup_logging(config: Config) -> None:
     """Setup logging configuration."""
+    import io
+
     log_level = getattr(logging, config.logging.level.upper(), logging.INFO)
 
     # Create formatter
@@ -447,8 +449,12 @@ def setup_logging(config: Config) -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
 
-    # Console handler
-    console_handler = logging.StreamHandler()
+    # Console handler with UTF-8 encoding for Windows
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 

@@ -15,6 +15,7 @@ from src.data_collector import DataCollector
 from src.executor import Executor
 from src.models import (
     Position,
+    PositionSide,
     PositionStatus,
     create_async_session_factory,
     init_database,
@@ -146,10 +147,8 @@ class FundingBot:
 
             # Determine position side
             if signal.signal == Signal.ENTER_LONG_SPOT_SHORT_PERP:
-                from src.models import PositionSide
                 side = PositionSide.LONG_SPOT_SHORT_PERP
             else:
-                from src.models import PositionSide
                 side = PositionSide.SHORT_SPOT_LONG_PERP
 
             # Execute entry

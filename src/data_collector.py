@@ -102,7 +102,11 @@ class DataCollector:
                 "secret": self.config.binance_api_secret,
                 "sandbox": self.config.binance_testnet,
                 "enableRateLimit": True,
-                "options": {"defaultType": "spot"},
+                "options": {
+                    "defaultType": "spot",
+                    "adjustForTimeDifference": True,
+                    "recvWindow": 60000,
+                },
             }
         )
 
@@ -113,8 +117,16 @@ class DataCollector:
                 "secret": self.config.binance_api_secret,
                 "sandbox": self.config.binance_testnet,
                 "enableRateLimit": True,
+                "options": {
+                    "adjustForTimeDifference": True,
+                    "recvWindow": 60000,
+                },
             }
         )
+
+        # Load time difference from server
+        await self._exchange.load_time_difference()
+        await self._futures_exchange.load_time_difference()
 
         logger.info("Exchange connections initialized")
 

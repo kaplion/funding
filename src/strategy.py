@@ -32,6 +32,7 @@ class TradeSignal:
     reason: str
     position_size_usdt: float = 0
     urgency: int = 0  # 0-10, higher = more urgent
+    confidence: float = 0.0  # 0-1 confidence score
 
 
 class Strategy:
@@ -71,6 +72,49 @@ class Strategy:
 
         return max(position_size, 0)
 
+    def calculate_confidence(
+        self,
+        funding_data: FundingRateData,
+        spread: SpotFuturesSpread | None,
+    ) -> float:
+        """Calculate confidence score for an opportunity.
+
+        Args:
+            funding_data: Funding rate data
+            spread: Current spread data
+
+        Returns:
+            Confidence score from 0 to 1
+        """
+        score = 0.0
+
+        # APR contribution (max 40 points)
+        apr = abs(funding_data.apr)
+        score += min(apr / 100 * 40, 40)
+
+        # Volume contribution (max 20 points)
+        if funding_data.volume_24h > 100_000_000:
+            score += 20
+        elif funding_data.volume_24h > 50_000_000:
+            score += 15
+        elif funding_data.volume_24h > 10_000_000:
+            score += 10
+
+        # Open interest contribution (max 20 points)
+        if funding_data.open_interest > 100_000_000:
+            score += 20
+        elif funding_data.open_interest > 50_000_000:
+            score += 15
+        elif funding_data.open_interest > 10_000_000:
+            score += 10
+
+        # Spread penalty (max -20 points)
+        if spread:
+            spread_pct = abs(spread.spread) * 100
+            score -= min(spread_pct * 20, 20)
+
+        return max(score, 0) / 100  # Normalize to 0-1
+
     def should_enter_position(
         self,
         funding_data: FundingRateData,
@@ -91,6 +135,7 @@ class Strategy:
         """
         symbol = funding_data.symbol
         funding_rate = funding_data.funding_rate
+        apr = abs(funding_data.apr)
 
         # Check max positions limit
         active_positions = [
@@ -127,6 +172,17 @@ class Strategy:
                 reason=f"Funding rate {funding_rate:.6f} below threshold {min_funding:.6f}",
             )
 
+        # Check minimum APR threshold - only enter high-yield opportunities
+        min_apr = self.config.strategy.min_apr
+        if apr < min_apr:
+            return TradeSignal(
+                signal=Signal.HOLD,
+                symbol=symbol,
+                funding_rate=funding_rate,
+                spread=spread.spread if spread else 0,
+                reason=f"APR {apr:.2f}% below minimum {min_apr:.2f}%",
+            )
+
         # Check spread
         if spread:
             max_spread = self.config.strategy.max_spread
@@ -158,15 +214,21 @@ class Strategy:
                 reason="Position size too small or allocation limit reached",
             )
 
+        # Calculate confidence score
+        confidence = self.calculate_confidence(funding_data, spread)
+
         # Determine signal based on funding rate direction
+        # Both positive and negative funding can be profitable:
+        # - Positive funding: longs pay shorts -> we go long spot + short perp to receive funding
+        # - Negative funding: shorts pay longs -> we go short spot + long perp to receive funding
         if funding_rate > 0:
-            # Positive funding: long spot + short perpetual
+            # Positive funding: long spot + short perpetual (we receive funding)
             signal = Signal.ENTER_LONG_SPOT_SHORT_PERP
-            reason = f"Positive funding {funding_rate:.6f} ({funding_data.apr:.2f}% APR)"
+            reason = f"Positive funding {funding_rate:.6f} ({apr:.2f}% APR) - will receive funding"
         else:
-            # Negative funding: short spot (margin) + long perpetual
+            # Negative funding: short spot (margin) + long perpetual (we receive funding)
             signal = Signal.ENTER_SHORT_SPOT_LONG_PERP
-            reason = f"Negative funding {funding_rate:.6f} ({funding_data.apr:.2f}% APR)"
+            reason = f"Negative funding {funding_rate:.6f} ({apr:.2f}% APR) - will receive funding"
 
         # Calculate urgency based on funding rate magnitude
         urgency = min(int(abs(funding_rate) / min_funding), 10)
@@ -179,6 +241,7 @@ class Strategy:
             reason=reason,
             position_size_usdt=position_size,
             urgency=urgency,
+            confidence=confidence,
         )
 
     def should_exit_position(

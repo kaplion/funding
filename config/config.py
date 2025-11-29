@@ -20,6 +20,9 @@ class StrategyConfig(BaseSettings):
     min_funding_rate: float = Field(
         default=0.0003, description="Minimum funding rate per 8h"
     )
+    min_apr: float = Field(
+        default=30.0, description="Minimum annualized APR percentage"
+    )
     max_spread: float = Field(
         default=0.001, description="Maximum spread between spot and futures"
     )

@@ -398,3 +398,207 @@ class TestStrategy:
         # ETHUSDT should be ranked higher (higher funding, lower spread)
         assert ranked[0].symbol == "ETHUSDT"
         assert ranked[1].symbol == "BTCUSDT"
+
+    def test_should_not_enter_below_min_apr(self, strategy):
+        """Test no entry when APR is below minimum threshold."""
+        # Set min_apr to 50% for this test
+        strategy.config.strategy.min_apr = 50
+        
+        # Create funding data with ~32.85% APR (passes funding rate threshold but fails APR)
+        # 0.0003 * 3 * 365 * 100 = 32.85% APR (just at min_funding_rate threshold)
+        funding_data = FundingRateData(
+            symbol="BTCUSDT",
+            funding_rate=0.0003,  # At threshold for funding rate
+            predicted_funding_rate=None,
+            mark_price=50000,
+            index_price=50000,
+            next_funding_time=datetime.utcnow(),
+            open_interest=1000000000,
+            volume_24h=5000000000,
+        )
+        
+        spread = SpotFuturesSpread("BTCUSDT", 50000, 50020)
+        
+        signal = strategy.should_enter_position(
+            funding_data=funding_data,
+            spread=spread,
+            open_positions=[],
+            total_equity=10000,
+        )
+        
+        assert signal.signal == Signal.HOLD
+        assert "APR" in signal.reason
+        assert "below minimum" in signal.reason
+
+    def test_should_enter_above_min_apr(self, strategy):
+        """Test entry when APR is above minimum threshold."""
+        # Set min_apr to 30%
+        strategy.config.strategy.min_apr = 30
+        
+        # Create funding data with ~55% APR
+        # 0.0005 * 3 * 365 * 100 = 54.75% APR
+        funding_data = FundingRateData(
+            symbol="BTCUSDT",
+            funding_rate=0.0005,
+            predicted_funding_rate=None,
+            mark_price=50000,
+            index_price=50000,
+            next_funding_time=datetime.utcnow(),
+            open_interest=1000000000,
+            volume_24h=5000000000,
+        )
+        
+        spread = SpotFuturesSpread("BTCUSDT", 50000, 50020)
+        
+        signal = strategy.should_enter_position(
+            funding_data=funding_data,
+            spread=spread,
+            open_positions=[],
+            total_equity=10000,
+        )
+        
+        assert signal.signal == Signal.ENTER_LONG_SPOT_SHORT_PERP
+        assert signal.confidence > 0
+
+    def test_calculate_confidence_high_apr_high_volume(self, strategy):
+        """Test confidence calculation with high APR and volume."""
+        funding_data = FundingRateData(
+            symbol="BTCUSDT",
+            funding_rate=0.001,  # ~109.5% APR
+            predicted_funding_rate=None,
+            mark_price=50000,
+            index_price=50000,
+            next_funding_time=datetime.utcnow(),
+            open_interest=200000000,  # 200M OI
+            volume_24h=200000000,  # 200M volume
+        )
+        
+        spread = SpotFuturesSpread("BTCUSDT", 50000, 50000)  # 0% spread
+        
+        confidence = strategy.calculate_confidence(funding_data, spread)
+        
+        # Should have high confidence (>0.6)
+        assert confidence > 0.6
+
+    def test_calculate_confidence_low_liquidity(self, strategy):
+        """Test confidence calculation with low liquidity."""
+        funding_data = FundingRateData(
+            symbol="BTCUSDT",
+            funding_rate=0.0005,  # ~54.75% APR
+            predicted_funding_rate=None,
+            mark_price=50000,
+            index_price=50000,
+            next_funding_time=datetime.utcnow(),
+            open_interest=1000000,  # 1M OI (low)
+            volume_24h=1000000,  # 1M volume (low)
+        )
+        
+        spread = SpotFuturesSpread("BTCUSDT", 50000, 50000)
+        
+        confidence = strategy.calculate_confidence(funding_data, spread)
+        
+        # Should have lower confidence due to low liquidity
+        assert confidence < 0.5
+
+    def test_calculate_confidence_spread_penalty(self, strategy):
+        """Test confidence calculation penalizes high spread."""
+        funding_data = FundingRateData(
+            symbol="BTCUSDT",
+            funding_rate=0.0005,
+            predicted_funding_rate=None,
+            mark_price=50000,
+            index_price=50000,
+            next_funding_time=datetime.utcnow(),
+            open_interest=100000000,
+            volume_24h=100000000,
+        )
+        
+        # Low spread
+        low_spread = SpotFuturesSpread("BTCUSDT", 50000, 50010)
+        confidence_low = strategy.calculate_confidence(funding_data, low_spread)
+        
+        # High spread
+        high_spread = SpotFuturesSpread("BTCUSDT", 50000, 50500)
+        confidence_high = strategy.calculate_confidence(funding_data, high_spread)
+        
+        # Higher spread should result in lower confidence
+        assert confidence_low > confidence_high
+
+    def test_entry_signal_includes_confidence(self, strategy):
+        """Test that entry signal includes confidence score."""
+        strategy.config.strategy.min_apr = 30
+        
+        funding_data = FundingRateData(
+            symbol="BTCUSDT",
+            funding_rate=0.0005,
+            predicted_funding_rate=None,
+            mark_price=50000,
+            index_price=50000,
+            next_funding_time=datetime.utcnow(),
+            open_interest=100000000,
+            volume_24h=100000000,
+        )
+        
+        spread = SpotFuturesSpread("BTCUSDT", 50000, 50020)
+        
+        signal = strategy.should_enter_position(
+            funding_data=funding_data,
+            spread=spread,
+            open_positions=[],
+            total_equity=10000,
+        )
+        
+        assert signal.signal == Signal.ENTER_LONG_SPOT_SHORT_PERP
+        assert signal.confidence > 0
+        assert "will receive funding" in signal.reason
+
+    def test_entry_signal_reason_positive_funding(self, strategy):
+        """Test entry signal reason for positive funding."""
+        strategy.config.strategy.min_apr = 30
+        
+        funding_data = FundingRateData(
+            symbol="BTCUSDT",
+            funding_rate=0.0005,
+            predicted_funding_rate=None,
+            mark_price=50000,
+            index_price=50000,
+            next_funding_time=datetime.utcnow(),
+            open_interest=100000000,
+            volume_24h=100000000,
+        )
+        
+        signal = strategy.should_enter_position(
+            funding_data=funding_data,
+            spread=None,
+            open_positions=[],
+            total_equity=10000,
+        )
+        
+        assert "Positive funding" in signal.reason
+        assert "will receive funding" in signal.reason
+
+    def test_entry_signal_reason_negative_funding(self, strategy):
+        """Test entry signal reason for negative funding."""
+        strategy.config.strategy.min_apr = 30
+        
+        funding_data = FundingRateData(
+            symbol="BTCUSDT",
+            funding_rate=-0.0005,
+            predicted_funding_rate=None,
+            mark_price=50000,
+            index_price=50000,
+            next_funding_time=datetime.utcnow(),
+            open_interest=100000000,
+            volume_24h=100000000,
+        )
+        
+        signal = strategy.should_enter_position(
+            funding_data=funding_data,
+            spread=None,
+            open_positions=[],
+            total_equity=10000,
+        )
+        
+        assert signal.signal == Signal.ENTER_SHORT_SPOT_LONG_PERP
+        assert "Negative funding" in signal.reason
+        assert "will receive funding" in signal.reason

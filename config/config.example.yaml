@@ -4,6 +4,8 @@
 strategy:
   # Minimum funding rate per 8h period (0.0003 = 0.03% = ~32% APR)
   min_funding_rate: 0.0003
+  # Minimum annualized APR percentage (only enter high-yield opportunities)
+  min_apr: 30
   # Maximum spread between spot and futures (0.001 = 0.1%)
   max_spread: 0.001
   # Position size as percentage of account equity

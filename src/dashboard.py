@@ -39,7 +39,21 @@ class Dashboard:
         accounting: Accounting | None = None,
     ):
         self.config = config
-        self.data_collector = data_collector
+
+        # Initialize paper trader for dashboard if in paper mode
+        self._paper_trader = None
+        if config.trading.paper_trading:
+            from src.paper_trader import PaperTrader
+            self._paper_trader = PaperTrader(config.trading.paper_initial_balance)
+
+        # Create data collector with paper trader if not provided
+        if data_collector is None:
+            self.data_collector = DataCollector(config)
+            if self._paper_trader:
+                self.data_collector._paper_trader = self._paper_trader
+        else:
+            self.data_collector = data_collector
+
         self.risk_manager = risk_manager
         self.accounting = accounting or Accounting(config)
 
@@ -114,15 +128,18 @@ class Dashboard:
                     result = await session.execute(stmt)
                     positions = list(result.scalars().all())
 
-                    # Get balances
+                    # Get balances - will use paper trader if in paper mode
                     balance = {"total_equity": 0, "spot_total": 0, "futures_total": 0}
                     margin_ratio = None
                     if self.data_collector:
                         try:
                             balance = await self.data_collector.get_account_balance()
                             margin_ratio = await self.data_collector.get_margin_ratio()
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.warning(f"Could not get balance: {e}")
+                            # Fallback for paper trading
+                            if self.config.trading.paper_trading and self._paper_trader:
+                                balance = await self._paper_trader.get_balance()
 
                     # Calculate P&L
                     account_pnl = await self.accounting.calculate_account_pnl(

@@ -404,11 +404,11 @@ class TestStrategy:
         # Set min_apr to 50% for this test
         strategy.config.strategy.min_apr = 50
         
-        # Create funding data with ~32.85% APR (passes funding rate threshold but fails APR)
-        # 0.0003 * 3 * 365 * 100 = 32.85% APR (just at min_funding_rate threshold)
+        # Create funding data with 32.85% APR (below 50% min_apr threshold)
+        # 0.0003 * 3 * 365 * 100 = 32.85% APR
         funding_data = FundingRateData(
             symbol="BTCUSDT",
-            funding_rate=0.0003,  # At threshold for funding rate
+            funding_rate=0.0003,  # At min_funding_rate threshold
             predicted_funding_rate=None,
             mark_price=50000,
             index_price=50000,
@@ -435,7 +435,7 @@ class TestStrategy:
         # Set min_apr to 30%
         strategy.config.strategy.min_apr = 30
         
-        # Create funding data with ~55% APR
+        # Create funding data with 54.75% APR (above 30% min_apr threshold)
         # 0.0005 * 3 * 365 * 100 = 54.75% APR
         funding_data = FundingRateData(
             symbol="BTCUSDT",
@@ -464,7 +464,7 @@ class TestStrategy:
         """Test confidence calculation with high APR and volume."""
         funding_data = FundingRateData(
             symbol="BTCUSDT",
-            funding_rate=0.001,  # ~109.5% APR
+            funding_rate=0.001,  # 109.5% APR
             predicted_funding_rate=None,
             mark_price=50000,
             index_price=50000,

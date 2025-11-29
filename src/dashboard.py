@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import math
 from datetime import datetime
 from pathlib import Path
 
@@ -292,8 +293,13 @@ class Dashboard:
             try:
                 if not self.risk_manager:
                     return {
-                        "margin_ratio": None,
-                        "risk_level": "unknown",
+                        "margin_ratio": 0,
+                        "total_equity": 0,
+                        "total_position_value": 0,
+                        "position_count": 0,
+                        "min_liquidation_distance": 100,
+                        "current_drawdown": 0,
+                        "risk_level": "low",
                         "alerts": [],
                     }
 
@@ -304,14 +310,31 @@ class Dashboard:
 
                     metrics = await self.risk_manager.calculate_risk_metrics(positions)
 
+                    # Safely handle None/NaN values using math.isnan for clarity
+                    margin_ratio = metrics.margin_ratio
+                    if margin_ratio is None or (isinstance(margin_ratio, float) and math.isnan(margin_ratio)):
+                        margin_ratio = 0
+
+                    min_liq_dist = metrics.min_liquidation_distance
+                    if min_liq_dist is None or (isinstance(min_liq_dist, float) and math.isnan(min_liq_dist)):
+                        min_liq_dist = 100
+
+                    current_drawdown = metrics.current_drawdown
+                    if current_drawdown is None or (isinstance(current_drawdown, float) and math.isnan(current_drawdown)):
+                        current_drawdown = 0
+
+                    total_equity = metrics.total_equity
+                    if total_equity is None or (isinstance(total_equity, float) and math.isnan(total_equity)):
+                        total_equity = 0
+
                     return {
-                        "margin_ratio": metrics.margin_ratio,
-                        "total_equity": metrics.total_equity,
-                        "total_position_value": metrics.total_position_value,
-                        "position_count": metrics.position_count,
-                        "min_liquidation_distance": metrics.min_liquidation_distance,
-                        "current_drawdown": metrics.current_drawdown,
-                        "risk_level": metrics.risk_level.value,
+                        "margin_ratio": margin_ratio,
+                        "total_equity": total_equity,
+                        "total_position_value": metrics.total_position_value or 0,
+                        "position_count": metrics.position_count or 0,
+                        "min_liquidation_distance": min_liq_dist,
+                        "current_drawdown": current_drawdown,
+                        "risk_level": metrics.risk_level.value if metrics.risk_level else "low",
                         "alerts": [
                             {
                                 "level": a.level.value,
@@ -325,7 +348,17 @@ class Dashboard:
                     }
             except Exception as e:
                 logger.error(f"Error getting risk metrics: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+                # Return safe defaults on error
+                return {
+                    "margin_ratio": 0,
+                    "total_equity": 0,
+                    "total_position_value": 0,
+                    "position_count": 0,
+                    "min_liquidation_distance": 100,
+                    "current_drawdown": 0,
+                    "risk_level": "low",
+                    "alerts": [],
+                }
 
         @self.app.get("/api/funding-rates")
         async def get_funding_rates():
@@ -409,11 +442,30 @@ class Dashboard:
                     "max_drawdown": self.config.risk.max_drawdown,
                 },
                 "trading": {
+                    "paper_trading": self.config.trading.paper_trading,
+                    "paper_initial_balance": self.config.trading.paper_initial_balance,
                     "prefer_limit_orders": self.config.trading.prefer_limit_orders,
                     "limit_order_timeout": self.config.trading.limit_order_timeout,
                     "default_leverage": self.config.trading.default_leverage,
                     "min_order_value": self.config.trading.min_order_value,
                 },
+            }
+
+        @self.app.get("/api/paper-status")
+        async def get_paper_status():
+            """Get paper trading status and summary."""
+            is_paper_mode = self.config.trading.paper_trading
+
+            if not is_paper_mode:
+                return {
+                    "paper_trading": False,
+                    "message": "Live trading mode",
+                }
+
+            return {
+                "paper_trading": True,
+                "initial_balance": self.config.trading.paper_initial_balance,
+                "message": "Paper trading mode - using virtual funds",
             }
 
     def set_bot_running(self, running: bool) -> None:

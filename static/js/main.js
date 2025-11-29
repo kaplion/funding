@@ -34,7 +34,8 @@ async function refreshData() {
             fetchPerformance(),
             fetchEquityHistory(),
             fetchConfig(),
-            fetchStatus()
+            fetchStatus(),
+            fetchPaperStatus()
         ]);
         updateLastUpdated();
     } catch (error) {
@@ -46,6 +47,27 @@ async function refreshData() {
 function updateLastUpdated() {
     const now = new Date();
     document.getElementById('last-updated').textContent = now.toLocaleString();
+}
+
+// Fetch paper trading status
+async function fetchPaperStatus() {
+    try {
+        const response = await fetch('/api/paper-status');
+        const data = await response.json();
+        
+        const paperBadge = document.getElementById('paper-mode-badge');
+        if (paperBadge) {
+            if (data.paper_trading) {
+                paperBadge.style.display = 'inline-block';
+                paperBadge.textContent = 'PAPER MODE';
+                paperBadge.title = `Virtual balance: $${data.initial_balance}`;
+            } else {
+                paperBadge.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching paper status:', error);
+    }
 }
 
 // Fetch bot status
@@ -139,21 +161,31 @@ async function fetchRiskMetrics() {
         const response = await fetch('/api/risk-metrics');
         const data = await response.json();
         
-        // Update risk level
+        // Update risk level with safe handling
         const riskLevel = document.getElementById('risk-level');
-        riskLevel.textContent = data.risk_level.charAt(0).toUpperCase() + data.risk_level.slice(1);
-        riskLevel.className = 'metric-value risk-' + data.risk_level;
+        const riskLevelValue = data.risk_level || 'low';
+        riskLevel.textContent = riskLevelValue.charAt(0).toUpperCase() + riskLevelValue.slice(1);
+        riskLevel.className = 'metric-value risk-' + riskLevelValue;
         
-        // Update metrics
+        // Update metrics with NaN handling
+        const marginRatio = data.margin_ratio;
         document.getElementById('margin-ratio').textContent = 
-            data.margin_ratio !== null ? formatPercent(data.margin_ratio * 100) : 'N/A';
+            (marginRatio !== null && marginRatio !== undefined && !isNaN(marginRatio)) 
+                ? formatPercent(marginRatio * 100) 
+                : '0.00%';
+        
+        const liqDistance = data.min_liquidation_distance;
         document.getElementById('liq-distance').textContent = 
-            data.min_liquidation_distance !== null ? formatPercent(data.min_liquidation_distance * 100) : 'N/A';
-        document.getElementById('drawdown').textContent = formatPercent(data.current_drawdown * 100);
+            (liqDistance !== null && liqDistance !== undefined && !isNaN(liqDistance) && liqDistance < 100) 
+                ? formatPercent(liqDistance * 100) 
+                : 'N/A';
+        
+        const drawdown = data.current_drawdown || 0;
+        document.getElementById('drawdown').textContent = formatPercent(drawdown * 100);
         
         // Update alerts
         const alertsContainer = document.getElementById('risk-alerts');
-        if (data.alerts.length > 0) {
+        if (data.alerts && data.alerts.length > 0) {
             alertsContainer.innerHTML = data.alerts.map(alert => `
                 <div class="alert alert-${alert.level}">
                     <strong>${alert.type.replace(/_/g, ' ').toUpperCase()}:</strong> ${alert.message}
@@ -164,6 +196,12 @@ async function fetchRiskMetrics() {
         }
     } catch (error) {
         console.error('Error fetching risk metrics:', error);
+        // Set safe defaults on error
+        document.getElementById('risk-level').textContent = 'Low';
+        document.getElementById('risk-level').className = 'metric-value risk-low';
+        document.getElementById('margin-ratio').textContent = '0.00%';
+        document.getElementById('liq-distance').textContent = 'N/A';
+        document.getElementById('drawdown').textContent = '0.00%';
     }
 }
 
@@ -410,22 +448,22 @@ async function stopBot() {
 
 // Formatting helpers
 function formatCurrency(value) {
-    if (value === null || value === undefined) return '$0.00';
+    if (value === null || value === undefined || isNaN(value)) return '$0.00';
     return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function formatPercent(value) {
-    if (value === null || value === undefined) return '0.00%';
+    if (value === null || value === undefined || isNaN(value)) return '0.00%';
     return value.toFixed(2) + '%';
 }
 
 function formatFundingRate(value) {
-    if (value === null || value === undefined) return '0.0000%';
+    if (value === null || value === undefined || isNaN(value)) return '0.0000%';
     return (value * 100).toFixed(4) + '%';
 }
 
 function formatPrice(value) {
-    if (value === null || value === undefined) return '$0.00';
+    if (value === null || value === undefined || isNaN(value)) return '$0.00';
     if (value >= 1) {
         return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
@@ -433,7 +471,7 @@ function formatPrice(value) {
 }
 
 function formatVolume(value) {
-    if (value === null || value === undefined) return '$0';
+    if (value === null || value === undefined || isNaN(value)) return '$0';
     if (value >= 1e9) return '$' + (value / 1e9).toFixed(2) + 'B';
     if (value >= 1e6) return '$' + (value / 1e6).toFixed(2) + 'M';
     if (value >= 1e3) return '$' + (value / 1e3).toFixed(2) + 'K';
@@ -448,12 +486,14 @@ function formatSide(side) {
 }
 
 function formatDuration(hours) {
+    if (hours === null || hours === undefined || isNaN(hours)) return '0 min';
     if (hours < 1) return Math.round(hours * 60) + ' min';
     if (hours < 24) return hours.toFixed(1) + ' hrs';
     return (hours / 24).toFixed(1) + ' days';
 }
 
 function formatTime(isoString) {
+    if (!isoString) return 'N/A';
     const date = new Date(isoString);
     return date.toLocaleTimeString();
 }

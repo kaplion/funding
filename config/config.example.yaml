@@ -1,0 +1,87 @@
+# Binance Funding Rate Arbitrage Bot Configuration
+
+# Strategy parameters
+strategy:
+  # Minimum funding rate per 8h period (0.0003 = 0.03% = ~32% APR)
+  min_funding_rate: 0.0003
+  # Maximum spread between spot and futures (0.001 = 0.1%)
+  max_spread: 0.001
+  # Position size as percentage of account equity
+  position_size_pct: 0.1
+  # Maximum number of concurrent positions
+  max_positions: 5
+  # Recheck interval in seconds
+  recheck_interval: 300
+
+# Risk management
+risk:
+  # Maximum allocation per coin (percentage of equity)
+  max_coin_allocation: 0.2
+  # Margin ratio warning threshold
+  margin_ratio_warning: 0.7
+  # Margin ratio critical threshold (auto-close positions)
+  margin_ratio_critical: 0.85
+  # Minimum liquidation distance (percentage)
+  min_liquidation_distance: 0.15
+  # Maximum drawdown before pausing bot
+  max_drawdown: 0.1
+
+# Trading parameters
+trading:
+  # Prefer limit orders over market orders
+  prefer_limit_orders: true
+  # Timeout for limit orders before converting to market (seconds)
+  limit_order_timeout: 30
+  # Default leverage for futures positions
+  default_leverage: 1
+  # Minimum order value in USDT
+  min_order_value: 10
+
+# Filters for coin selection
+filters:
+  # Minimum 24h volume in USDT
+  min_volume_24h: 10000000
+  # Minimum open interest in USDT
+  min_open_interest: 5000000
+  # Excluded symbols (e.g., stablecoins, low liquidity)
+  excluded_symbols:
+    - USDCUSDT
+    - BUSDUSDT
+    - TUSDUSDT
+
+# Notifications
+notifications:
+  # Enable Telegram notifications
+  telegram_enabled: false
+  # Notify on position open
+  notify_on_open: true
+  # Notify on position close
+  notify_on_close: true
+  # Notify on risk warnings
+  notify_on_risk_warning: true
+  # Daily summary time (HH:MM UTC)
+  daily_summary_time: "08:00"
+
+# Dashboard
+dashboard:
+  # Enable web dashboard
+  enabled: true
+  # Dashboard host
+  host: "0.0.0.0"
+  # Dashboard port
+  port: 8000
+  # Refresh interval in seconds
+  refresh_interval: 30
+
+# Logging
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: INFO
+  # Log to file
+  log_to_file: true
+  # Log file path
+  log_file: "logs/funding_bot.log"
+  # Max log file size (MB)
+  max_file_size: 10
+  # Number of backup files to keep
+  backup_count: 5

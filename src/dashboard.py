@@ -446,23 +446,16 @@ def create_dashboard(
     )
 
 
-# Global app instance for uvicorn
-app = None
-
-
 def get_app():
-    """Get or create FastAPI app instance."""
-    global app
-    if app is None:
-        from config.config import load_config
+    """Get or create FastAPI app instance for uvicorn."""
+    from config.config import load_config
 
-        config = load_config()
-        dashboard = create_dashboard(config)
-        app = dashboard.app
-    return app
+    config = load_config()
+    dashboard = create_dashboard(config)
+    return dashboard.app
 
 
-# Create app instance for uvicorn
+# Create app instance for uvicorn (used when running with uvicorn src.dashboard:app)
 app = get_app()
 
 

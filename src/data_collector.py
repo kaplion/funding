@@ -422,6 +422,9 @@ class DataCollector:
                 return None
 
             return maintenance_margin / total_margin
+        except ccxt.ExchangeError as e:
+            logger.error(f"Exchange error fetching margin ratio: {e}")
+            return None
         except Exception as e:
             logger.error(f"Error fetching margin ratio: {e}")
             return None

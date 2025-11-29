@@ -88,10 +88,11 @@ class SpotFuturesSpread:
 class DataCollector:
     """Collects funding rates and market data from Binance."""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, paper_trader=None):
         self.config = config
         self._exchange: ccxt.binance | None = None
         self._futures_exchange: ccxt.binanceusdm | None = None
+        self._paper_trader = paper_trader
 
     async def initialize(self) -> None:
         """Initialize exchange connections."""
@@ -137,6 +138,14 @@ class DataCollector:
         if self._futures_exchange:
             await self._futures_exchange.close()
         logger.info("Exchange connections closed")
+
+    def set_paper_trader(self, paper_trader) -> None:
+        """Set the paper trader instance.
+
+        Args:
+            paper_trader: PaperTrader instance
+        """
+        self._paper_trader = paper_trader
 
     @property
     def exchange(self) -> ccxt.binance:
@@ -349,7 +358,14 @@ class DataCollector:
         logger.debug(f"Saved funding rate history for {len(funding_data)} symbols")
 
     async def get_account_balance(self) -> dict[str, float]:
-        """Get account balances for spot and futures."""
+        """Get account balances for spot and futures.
+
+        Returns paper trading balance if paper_trading is enabled.
+        """
+        # Use paper trader balance if in paper trading mode
+        if self.config.trading.paper_trading and self._paper_trader is not None:
+            return await self._paper_trader.get_balance()
+
         try:
             spot_balance = await self.exchange.fetch_balance()
             futures_balance = await self.futures_exchange.fetch_balance()

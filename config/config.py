@@ -53,6 +53,10 @@ class RiskConfig(BaseSettings):
 class TradingConfig(BaseSettings):
     """Trading configuration."""
 
+    paper_trading: bool = Field(default=True, description="Enable paper trading mode")
+    paper_initial_balance: float = Field(
+        default=10000.0, description="Initial balance for paper trading (USDT)"
+    )
     prefer_limit_orders: bool = Field(default=True, description="Prefer limit orders")
     limit_order_timeout: int = Field(
         default=30, description="Limit order timeout in seconds"
@@ -184,6 +188,14 @@ class Config(BaseSettings):
         telegram_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
         telegram_chat = os.getenv("TELEGRAM_CHAT_ID", "")
         database_url = os.getenv("DATABASE_URL", "sqlite:///./funding_bot.db")
+
+        # Load paper trading from environment (override config if env var is set)
+        paper_trading_env = os.getenv("PAPER_TRADING")
+        if paper_trading_env is not None:
+            trading.paper_trading = paper_trading_env.lower() == "true"
+        paper_balance_env = os.getenv("PAPER_INITIAL_BALANCE")
+        if paper_balance_env is not None:
+            trading.paper_initial_balance = float(paper_balance_env)
 
         return cls(
             binance_api_key=api_key,

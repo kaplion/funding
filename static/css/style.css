@@ -120,6 +120,20 @@ header h1 {
     border: 1px solid var(--accent-red);
 }
 
+/* Paper Mode Badge */
+.paper-badge {
+    background-color: rgba(210, 153, 34, 0.2);
+    color: var(--accent-yellow);
+    border: 1px solid var(--accent-yellow);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+
 /* Panels */
 .panel {
     background-color: var(--bg-secondary);

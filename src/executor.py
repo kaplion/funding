@@ -681,7 +681,7 @@ class Executor:
             )
 
         # Use paper trader to simulate
-        paper_trader = self.data_collector._paper_trader
+        paper_trader = self.data_collector.paper_trader
         if not paper_trader:
             return PositionExecutionResult(
                 success=False,
@@ -743,7 +743,7 @@ class Executor:
             )
 
         # Use paper trader to simulate
-        paper_trader = self.data_collector._paper_trader
+        paper_trader = self.data_collector.paper_trader
         if not paper_trader:
             return PositionExecutionResult(
                 success=False,

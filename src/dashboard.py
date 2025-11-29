@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import math
 from datetime import datetime
 from pathlib import Path
 
@@ -309,21 +310,21 @@ class Dashboard:
 
                     metrics = await self.risk_manager.calculate_risk_metrics(positions)
 
-                    # Safely handle None/NaN values
+                    # Safely handle None/NaN values using math.isnan for clarity
                     margin_ratio = metrics.margin_ratio
-                    if margin_ratio is None or (isinstance(margin_ratio, float) and margin_ratio != margin_ratio):
+                    if margin_ratio is None or (isinstance(margin_ratio, float) and math.isnan(margin_ratio)):
                         margin_ratio = 0
 
                     min_liq_dist = metrics.min_liquidation_distance
-                    if min_liq_dist is None or (isinstance(min_liq_dist, float) and min_liq_dist != min_liq_dist):
+                    if min_liq_dist is None or (isinstance(min_liq_dist, float) and math.isnan(min_liq_dist)):
                         min_liq_dist = 100
 
                     current_drawdown = metrics.current_drawdown
-                    if current_drawdown is None or (isinstance(current_drawdown, float) and current_drawdown != current_drawdown):
+                    if current_drawdown is None or (isinstance(current_drawdown, float) and math.isnan(current_drawdown)):
                         current_drawdown = 0
 
                     total_equity = metrics.total_equity
-                    if total_equity is None or (isinstance(total_equity, float) and total_equity != total_equity):
+                    if total_equity is None or (isinstance(total_equity, float) and math.isnan(total_equity)):
                         total_equity = 0
 
                     return {

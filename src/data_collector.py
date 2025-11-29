@@ -1,9 +1,11 @@
 """Data collector for Binance funding rates and market data."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import ccxt.async_support as ccxt
 from sqlalchemy import select
@@ -11,6 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.config import Config
 from src.models import FundingRateHistory
+
+if TYPE_CHECKING:
+    from src.paper_trader import PaperTrader
 
 
 logger = logging.getLogger(__name__)
@@ -88,7 +93,7 @@ class SpotFuturesSpread:
 class DataCollector:
     """Collects funding rates and market data from Binance."""
 
-    def __init__(self, config: Config, paper_trader=None):
+    def __init__(self, config: Config, paper_trader: PaperTrader | None = None):
         self.config = config
         self._exchange: ccxt.binance | None = None
         self._futures_exchange: ccxt.binanceusdm | None = None
@@ -139,7 +144,7 @@ class DataCollector:
             await self._futures_exchange.close()
         logger.info("Exchange connections closed")
 
-    def set_paper_trader(self, paper_trader) -> None:
+    def set_paper_trader(self, paper_trader: PaperTrader | None) -> None:
         """Set the paper trader instance.
 
         Args:

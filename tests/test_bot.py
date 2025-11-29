@@ -117,3 +117,53 @@ class TestSignalHandlerPlatform:
                 
                 # On Unix, add_signal_handler should be called (twice: SIGINT, SIGTERM)
                 assert mock_loop.add_signal_handler.call_count == 2
+
+
+class TestPaperTradingMode:
+    """Tests for paper trading mode in FundingBot."""
+
+    def test_bot_creates_paper_trader_when_enabled(self):
+        """Test that FundingBot creates PaperTrader when paper_trading is True."""
+        config = Config()
+        config.trading.paper_trading = True
+        config.trading.paper_initial_balance = 10000.0
+
+        with patch('src.bot.DataCollector'), \
+             patch('src.bot.Strategy'), \
+             patch('src.bot.Executor'), \
+             patch('src.bot.RiskManager'), \
+             patch('src.bot.Accounting'), \
+             patch('src.bot.NotificationManager'):
+            bot = FundingBot(config)
+            assert bot._paper_trader is not None
+            assert bot._paper_trader.initial_balance == 10000.0
+
+    def test_bot_no_paper_trader_when_disabled(self):
+        """Test that FundingBot does not create PaperTrader when paper_trading is False."""
+        config = Config()
+        config.trading.paper_trading = False
+
+        with patch('src.bot.DataCollector'), \
+             patch('src.bot.Strategy'), \
+             patch('src.bot.Executor'), \
+             patch('src.bot.RiskManager'), \
+             patch('src.bot.Accounting'), \
+             patch('src.bot.NotificationManager'):
+            bot = FundingBot(config)
+            assert bot._paper_trader is None
+
+    def test_bot_passes_paper_trader_to_data_collector(self):
+        """Test that FundingBot passes PaperTrader to DataCollector."""
+        config = Config()
+        config.trading.paper_trading = True
+        config.trading.paper_initial_balance = 5000.0
+
+        with patch('src.bot.Strategy'), \
+             patch('src.bot.Executor'), \
+             patch('src.bot.RiskManager'), \
+             patch('src.bot.Accounting'), \
+             patch('src.bot.NotificationManager'):
+            bot = FundingBot(config)
+            # Verify the data_collector has the paper_trader set
+            assert bot.data_collector._paper_trader is not None
+            assert bot.data_collector._paper_trader.initial_balance == 5000.0

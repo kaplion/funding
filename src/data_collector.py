@@ -429,7 +429,14 @@ class DataCollector:
             return []
 
     async def get_margin_ratio(self) -> float | None:
-        """Get current margin ratio for futures account."""
+        """Get current margin ratio for futures account.
+
+        Returns 0.0 for paper trading mode (no real margin).
+        """
+        # Paper trading mode: return safe default (no real margin)
+        if self.config.trading.paper_trading:
+            return 0.0
+
         try:
             # Use CCXT's standard method instead of direct API call
             balance = await self.futures_exchange.fetch_balance()

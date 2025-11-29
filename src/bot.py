@@ -22,6 +22,7 @@ from src.models import (
     init_database,
 )
 from src.notifications import NotificationManager
+from src.paper_trader import PaperTrader
 from src.risk_manager import RiskManager
 from src.strategy import Signal, Strategy
 
@@ -35,8 +36,13 @@ class FundingBot:
     def __init__(self, config: Config):
         self.config = config
 
+        # Initialize paper trader if paper trading mode is enabled
+        self._paper_trader: PaperTrader | None = None
+        if config.trading.paper_trading:
+            self._paper_trader = PaperTrader(config.trading.paper_initial_balance)
+
         # Initialize components
-        self.data_collector = DataCollector(config)
+        self.data_collector = DataCollector(config, self._paper_trader)
         self.strategy = Strategy(config, self.data_collector)
         self.executor = Executor(config, self.data_collector)
         self.risk_manager = RiskManager(config, self.data_collector)
@@ -58,6 +64,15 @@ class FundingBot:
     async def initialize(self) -> None:
         """Initialize bot components."""
         logger.info("Initializing Funding Bot...")
+
+        # Log trading mode
+        if self.config.trading.paper_trading:
+            logger.info(
+                f"PAPER TRADING MODE - Virtual balance: "
+                f"${self.config.trading.paper_initial_balance:.2f}"
+            )
+        else:
+            logger.info("LIVE TRADING MODE - Using real funds")
 
         # Create logs directory
         log_dir = Path(self.config.logging.log_file).parent

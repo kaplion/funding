@@ -2,6 +2,7 @@
 
 import pytest
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from config.config import Config
 from src.data_collector import DataCollector, FundingRateData, SpotFuturesSpread
@@ -238,3 +239,59 @@ class TestDataCollector:
         assert len(opportunities) == 2
         assert opportunities[0].symbol == "ETHUSDT"  # Higher absolute rate first
         assert opportunities[1].symbol == "BTCUSDT"
+
+
+class TestExchangeInitialization:
+    """Tests for exchange initialization with timestamp synchronization."""
+
+    @patch('src.data_collector.ccxt.binanceusdm')
+    @patch('src.data_collector.ccxt.binance')
+    async def test_initialize_configures_time_difference_adjustment(
+        self, mock_binance, mock_binanceusdm, config
+    ):
+        """Test that exchanges are initialized with timestamp synchronization options."""
+        mock_spot = MagicMock()
+        mock_spot.load_time_difference = AsyncMock()
+        mock_binance.return_value = mock_spot
+
+        mock_futures = MagicMock()
+        mock_futures.load_time_difference = AsyncMock()
+        mock_binanceusdm.return_value = mock_futures
+
+        collector = DataCollector(config)
+        await collector.initialize()
+
+        # Verify spot exchange is configured with timestamp options
+        spot_call_args = mock_binance.call_args[0][0]
+        assert spot_call_args['options']['adjustForTimeDifference'] is True
+        assert spot_call_args['options']['recvWindow'] == 60000
+
+        # Verify futures exchange is configured with timestamp options
+        futures_call_args = mock_binanceusdm.call_args[0][0]
+        assert futures_call_args['options']['adjustForTimeDifference'] is True
+        assert futures_call_args['options']['recvWindow'] == 60000
+
+        # Verify load_time_difference is called for both exchanges
+        mock_spot.load_time_difference.assert_called_once()
+        mock_futures.load_time_difference.assert_called_once()
+
+    @patch('src.data_collector.ccxt.binanceusdm')
+    @patch('src.data_collector.ccxt.binance')
+    async def test_initialize_spot_has_default_type_option(
+        self, mock_binance, mock_binanceusdm, config
+    ):
+        """Test that spot exchange has defaultType option set."""
+        mock_spot = MagicMock()
+        mock_spot.load_time_difference = AsyncMock()
+        mock_binance.return_value = mock_spot
+
+        mock_futures = MagicMock()
+        mock_futures.load_time_difference = AsyncMock()
+        mock_binanceusdm.return_value = mock_futures
+
+        collector = DataCollector(config)
+        await collector.initialize()
+
+        # Verify spot exchange has defaultType option
+        spot_call_args = mock_binance.call_args[0][0]
+        assert spot_call_args['options']['defaultType'] == 'spot'

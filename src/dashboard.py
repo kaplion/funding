@@ -377,7 +377,21 @@ class Dashboard:
             """Get current funding rates."""
             try:
                 if not self.data_collector:
-                    return {"funding_rates": []}
+                    return {"funding_rates": [], "error": "Data collector not available"}
+
+                # Check if exchange is initialized, if not try to initialize
+                try:
+                    _ = self.data_collector.futures_exchange
+                except RuntimeError:
+                    # Initialize if not done
+                    try:
+                        await self.data_collector.initialize()
+                    except Exception as init_err:
+                        logger.warning(f"Could not initialize data collector: {init_err}")
+                        return {
+                            "funding_rates": [],
+                            "error": "Exchange not initialized and could not be initialized",
+                        }
 
                 funding_rates = await self.data_collector.get_all_funding_rates()
 
@@ -399,7 +413,7 @@ class Dashboard:
                 }
             except Exception as e:
                 logger.error(f"Error getting funding rates: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+                return {"funding_rates": [], "error": str(e)}
 
         @self.app.post("/api/bot/start")
         async def start_bot():
